@@ -5,7 +5,14 @@ export default {
         "./src/**/*.{js,ts,jsx,tsx}",
     ],
     theme: {
-        extend: {},
+        extend: {
+            colors: {
+                'trader-yellow': '#FFCA0B',
+                'trader-green': '#ADFA1D',
+            },
+        },
     },
-    plugins: [],
+    plugins: [
+        require('@tailwindcss/typography'),
+    ],
 }

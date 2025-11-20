@@ -117,15 +117,15 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white font-sans">
+    <div className="min-h-screen bg-[#FFCA0B] text-white font-sans">
       {!apiKeys ? (
-        <div className="flex items-center justify-center min-h-screen p-4">
-          <div className="max-w-md w-full">
+        <div className="flex items-center justify-center min-h-screen p-8">
+          <div className="w-full max-w-2xl">
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600 mb-2">
-                AI Trading Agent
+              <h1 className="text-5xl font-bold text-black mb-2">
+                TRADER<span className="text-white">.AI</span>
               </h1>
-              <p className="text-gray-400">Configure your API keys to get started</p>
+              <p className="text-black/70 text-lg">Multi-Agent Financial Analysis System</p>
             </div>
             <ApiKeyForm onStart={handleApiKeysSubmit} loading={false} />
           </div>
