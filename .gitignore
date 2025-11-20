@@ -71,6 +71,7 @@ frontend/.vite/
 # Logs
 *.log
 logs/
+DEBUG_TABS.md
 
 # Database
 *.db

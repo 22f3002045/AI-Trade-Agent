@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { ApiKeyForm } from './components/ApiKeyForm';
 import { Dashboard } from './components/Dashboard';
 import { runTradeStream, type TradeResponse } from './api';
+
+const STORAGE_KEY = 'ai_trading_agent_api_keys';
 
 const App: React.FC = () => {
   const [apiKeys, setApiKeys] = useState<Record<string, string> | null>(null);
@@ -11,8 +12,27 @@ const App: React.FC = () => {
   const [result, setResult] = useState<Partial<TradeResponse> | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
 
+  // Load API keys from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setApiKeys(parsed);
+      }
+    } catch (error) {
+      console.error('Failed to load API keys from storage:', error);
+    }
+  }, []);
+
   const handleApiKeysSubmit = (keys: Record<string, string>) => {
     setApiKeys(keys);
+    // Save to localStorage
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
+    } catch (error) {
+      console.error('Failed to save API keys to storage:', error);
+    }
   };
 
   const handleTrade = async (e: React.FormEvent) => {
@@ -33,18 +53,30 @@ const App: React.FC = () => {
           setResult((prev) => {
             const newState = { ...prev };
             if (data.data) {
-              // Map known state keys to result keys
-              if (data.data.market_report) newState.market_report = data.data.market_report;
-              if (data.data.sentiment_report) newState.sentiment_report = data.data.sentiment_report;
-              if (data.data.news_report) newState.news_report = data.data.news_report;
-              if (data.data.fundamentals_report) newState.fundamentals_report = data.data.fundamentals_report;
-              if (data.data.investment_plan) newState.investment_plan = data.data.investment_plan;
-              if (data.data.trader_investment_plan) newState.trader_plan = data.data.trader_investment_plan;
-              if (data.data.final_trade_decision) newState.final_decision = data.data.final_trade_decision;
+              console.log('Received data from node:', nodeName, data.data);
+
+              // Helper function to extract content from AIMessage objects or return string
+              const extractContent = (field: any): string => {
+                if (!field) return '';
+                if (typeof field === 'string') return field;
+                if (field.content) return field.content;
+                return JSON.stringify(field);
+              };
+
+              // Map known state keys to result keys, extracting content from AIMessage objects
+              if (data.data.market_report) newState.market_report = extractContent(data.data.market_report);
+              if (data.data.sentiment_report) newState.sentiment_report = extractContent(data.data.sentiment_report);
+              if (data.data.news_report) newState.news_report = extractContent(data.data.news_report);
+              if (data.data.fundamentals_report) newState.fundamentals_report = extractContent(data.data.fundamentals_report);
+              if (data.data.investment_plan) newState.investment_plan = extractContent(data.data.investment_plan);
+              if (data.data.trader_investment_plan) newState.trader_plan = extractContent(data.data.trader_investment_plan);
+              if (data.data.final_trade_decision) newState.final_decision = extractContent(data.data.final_trade_decision);
 
               // Handle debate states which are nested
               if (data.data.investment_debate_state) newState.investment_debate = data.data.investment_debate_state.history;
               if (data.data.risk_debate_state) newState.risk_debate = data.data.risk_debate_state.history;
+
+              console.log('Updated state:', newState);
             }
             return newState;
           });
@@ -65,13 +97,23 @@ const App: React.FC = () => {
     }
   };
 
+  const handleClearApiKeys = () => {
+    setApiKeys(null);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to clear API keys from storage:', error);
+    }
+  };
+
   const dashboardProps = {
     ticker,
     setTicker,
     loading,
     result,
     logs,
-    handleTrade
+    handleTrade,
+    onClearApiKeys: handleClearApiKeys
   };
 
   return (
@@ -89,13 +131,7 @@ const App: React.FC = () => {
           </div>
         </div>
       ) : (
-        <Routes>
-          <Route path="/" element={<Dashboard {...dashboardProps} />} />
-          <Route path="/market" element={<Dashboard {...dashboardProps} />} />
-          <Route path="/sentiment" element={<Dashboard {...dashboardProps} />} />
-          <Route path="/fundamentals" element={<Dashboard {...dashboardProps} />} />
-          <Route path="/strategy" element={<Dashboard {...dashboardProps} />} />
-        </Routes>
+        <Dashboard {...dashboardProps} />
       )}
     </div>
   );

@@ -277,8 +277,4 @@ This project is provided as-is for educational and personal use.
 
 For questions or feedback, please open an issue on GitHub.
 
----
-
-**Built with ❤️ using AI agents that actually work together**
-
 *Disclaimer: This tool is for educational and informational purposes only. Not financial advice. Always do your own research before making investment decisions.*

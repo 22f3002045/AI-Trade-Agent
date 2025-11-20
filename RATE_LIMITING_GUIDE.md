@@ -171,7 +171,3 @@ Frontend Display
 2. **`src/main.py`** - Event streaming with rate limit notifications
 3. **`frontend/src/App.tsx`** - Rate limit event handling
 4. **`frontend/src/components/Dashboard.tsx`** - UI display enhancements
-
-## Summary
-
-The system now intelligently manages Gemini API requests to stay within quota limits while keeping users informed of the process. Rate limiting is automatic, transparent, and configurable based on your API plan.

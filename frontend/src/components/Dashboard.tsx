@@ -1,8 +1,8 @@
-import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { type TradeResponse } from '../api';
-import { Activity, TrendingUp, AlertTriangle, FileText, MessageSquare, CheckCircle } from 'lucide-react';
+import { Activity, TrendingUp, AlertTriangle, FileText, MessageSquare, CheckCircle, Download } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import jsPDF from 'jspdf';
 
 interface DashboardProps {
     ticker: string;
@@ -11,6 +11,7 @@ interface DashboardProps {
     result: Partial<TradeResponse> | null;
     logs: string[];
     handleTrade: (e: React.FormEvent) => Promise<void>;
+    onClearApiKeys: () => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -19,15 +20,108 @@ export const Dashboard: React.FC<DashboardProps> = ({
     loading,
     result,
     logs,
-    handleTrade
+    handleTrade,
+    onClearApiKeys
 }) => {
-    const navigate = useNavigate();
-    const location = useLocation();
+    const [activeTab, setActiveTab] = useState('overview');
 
-    // Determine active tab from URL path
-    const activeTab = location.pathname === '/' || location.pathname === ''
-        ? 'overview'
-        : location.pathname.substring(1);
+    useEffect(() => {
+        console.log('Dashboard result updated:', result);
+    }, [result]);
+
+    const handleDownloadPDF = () => {
+        if (!result) return;
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 15;
+        const maxWidth = pageWidth - 2 * margin;
+        let yPosition = margin;
+
+        const addText = (text: string, fontSize: number = 10, isBold: boolean = false) => {
+            pdf.setFontSize(fontSize);
+            pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
+            const lines = pdf.splitTextToSize(text, maxWidth);
+            lines.forEach((line: string) => {
+                if (yPosition > pageHeight - margin) {
+                    pdf.addPage();
+                    yPosition = margin;
+                }
+                pdf.text(line, margin, yPosition);
+                yPosition += fontSize * 0.5;
+            });
+            yPosition += 3;
+        };
+
+        const cleanMarkdown = (text: string): string => {
+            if (typeof text !== 'string') return '';
+            return text.replace(/#{1,6}\s/g, '').replace(/\*\*/g, '').replace(/\*/g, '').replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1').replace(/`/g, '').trim();
+        };
+
+        pdf.setFillColor(59, 130, 246);
+        pdf.rect(0, 0, pageWidth, 30, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(24);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('AI Trading Analysis Report', pageWidth / 2, 20, { align: 'center' });
+        yPosition = 40;
+        pdf.setTextColor(0, 0, 0);
+
+        addText(`Ticker: ${ticker.toUpperCase()}`, 14, true);
+        addText(`Generated: ${new Date().toLocaleString()}`, 10);
+        yPosition += 5;
+
+        if (result.final_decision) {
+            pdf.setFillColor(220, 252, 231);
+            pdf.rect(margin - 5, yPosition - 5, maxWidth + 10, 10, 'F');
+            addText('FINAL DECISION', 16, true);
+            addText(cleanMarkdown(result.final_decision), 10);
+            yPosition += 5;
+        }
+        if (result.market_report) {
+            addText('MARKET ANALYSIS', 14, true);
+            addText(cleanMarkdown(result.market_report), 9);
+            yPosition += 5;
+        }
+        if (result.sentiment_report) {
+            addText('SENTIMENT ANALYSIS', 14, true);
+            addText(cleanMarkdown(result.sentiment_report), 9);
+            yPosition += 5;
+        }
+        if (result.news_report) {
+            addText('NEWS REPORT', 14, true);
+            addText(cleanMarkdown(result.news_report), 9);
+            yPosition += 5;
+        }
+        if (result.fundamentals_report) {
+            addText('FUNDAMENTAL ANALYSIS', 14, true);
+            addText(cleanMarkdown(result.fundamentals_report), 9);
+            yPosition += 5;
+        }
+        if (result.investment_plan) {
+            addText('INVESTMENT PLAN', 14, true);
+            addText(cleanMarkdown(result.investment_plan), 9);
+            yPosition += 5;
+        }
+        if (result.trader_plan) {
+            addText('TRADER PLAN', 14, true);
+            addText(cleanMarkdown(result.trader_plan), 9);
+            yPosition += 5;
+        }
+        if (result.risk_debate) {
+            addText('RISK DEBATE', 14, true);
+            addText(cleanMarkdown(result.risk_debate), 9);
+            yPosition += 5;
+        }
+        if (result.investment_debate) {
+            addText('INVESTMENT DEBATE', 14, true);
+            addText(cleanMarkdown(result.investment_debate), 9);
+        }
+
+        const fileName = `${ticker.toUpperCase()}_Analysis_${new Date().toISOString().split('T')[0]}.pdf`;
+        pdf.save(fileName);
+    };
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -56,10 +150,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 {loading ? 'Analyzing...' : 'Run Analysis'}
                             </button>
                         </div>
+                        {result && (
+                            <button
+                                onClick={handleDownloadPDF}
+                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium transition-all flex items-center gap-2"
+                                title="Download Analysis as PDF"
+                            >
+                                <Download size={18} />
+                                Download PDF
+                            </button>
+                        )}
+                        <button
+                            onClick={onClearApiKeys}
+                            className="bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-2 rounded-md font-medium transition-all"
+                            title="Clear API Keys and Logout"
+                        >
+                            Logout
+                        </button>
                     </div>
                 </header>
 
-                {/* Live Logs Section */}
                 {(loading || logs.length > 0) && (
                     <div className="mb-8 bg-gray-800 rounded-xl border border-gray-700 p-4">
                         <h3 className="text-lg font-semibold mb-2 flex items-center">
@@ -81,7 +191,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                    {/* Sidebar Navigation */}
                     <div className="lg:col-span-1 space-y-2">
                         {[
                             { id: 'overview', label: 'Overview & Decision', icon: TrendingUp },
@@ -92,7 +201,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         ].map((item) => (
                             <button
                                 key={item.id}
-                                onClick={() => navigate(item.id === 'overview' ? '/' : `/${item.id}`)}
+                                onClick={() => setActiveTab(item.id)}
                                 className={`w-full flex items-center p-3 rounded-lg transition-all ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
                             >
                                 <item.icon size={18} className="mr-3" />
@@ -101,7 +210,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         ))}
                     </div>
 
-                    {/* Main Content Area */}
                     <div className="lg:col-span-3 bg-gray-800 rounded-xl border border-gray-700 p-6 min-h-[600px]">
                         {!result ? (
                             <div className="flex flex-col items-center justify-center h-full text-gray-400">
@@ -141,7 +249,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 {activeTab === 'market' && (
                                     <div className="prose prose-invert max-w-none">
                                         <h2>Market Analysis</h2>
-                                        <ReactMarkdown>{result.market_report || 'Loading market data...'}</ReactMarkdown>
+                                        {result.market_report ? (
+                                            <ReactMarkdown>{result.market_report}</ReactMarkdown>
+                                        ) : (
+                                            <p className="text-gray-400">Waiting for market analysis data...</p>
+                                        )}
                                     </div>
                                 )}
 
@@ -149,11 +261,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                     <div className="space-y-8">
                                         <div className="prose prose-invert max-w-none">
                                             <h2>Sentiment Analysis</h2>
-                                            <ReactMarkdown>{result.sentiment_report || 'Loading sentiment data...'}</ReactMarkdown>
+                                            {result.sentiment_report ? (
+                                                <ReactMarkdown>{result.sentiment_report}</ReactMarkdown>
+                                            ) : (
+                                                <p className="text-gray-400">Waiting for sentiment analysis data...</p>
+                                            )}
                                         </div>
                                         <div className="border-t border-gray-700 pt-8 prose prose-invert max-w-none">
                                             <h2>News Report</h2>
-                                            <ReactMarkdown>{result.news_report || 'Loading news data...'}</ReactMarkdown>
+                                            {result.news_report ? (
+                                                <ReactMarkdown>{result.news_report}</ReactMarkdown>
+                                            ) : (
+                                                <p className="text-gray-400">Waiting for news data...</p>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -161,7 +281,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                 {activeTab === 'fundamentals' && (
                                     <div className="prose prose-invert max-w-none">
                                         <h2>Fundamental Analysis</h2>
-                                        <ReactMarkdown>{result.fundamentals_report || 'Loading fundamental data...'}</ReactMarkdown>
+                                        {result.fundamentals_report ? (
+                                            <ReactMarkdown>{result.fundamentals_report}</ReactMarkdown>
+                                        ) : (
+                                            <p className="text-gray-400">Waiting for fundamental analysis data...</p>
+                                        )}
                                     </div>
                                 )}
 
@@ -170,13 +294,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                         <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
                                             <h3 className="text-xl font-bold text-yellow-400 mb-4">Risk Debate</h3>
                                             <div className="prose prose-invert max-w-none text-sm">
-                                                <ReactMarkdown>{result.risk_debate || 'Debate in progress...'}</ReactMarkdown>
+                                                {result.risk_debate ? (
+                                                    <ReactMarkdown>{result.risk_debate}</ReactMarkdown>
+                                                ) : (
+                                                    <p className="text-gray-400">Debate in progress...</p>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
                                             <h3 className="text-xl font-bold text-indigo-400 mb-4">Investment Debate</h3>
                                             <div className="prose prose-invert max-w-none text-sm">
-                                                <ReactMarkdown>{result.investment_debate || 'Debate in progress...'}</ReactMarkdown>
+                                                {result.investment_debate ? (
+                                                    <ReactMarkdown>{result.investment_debate}</ReactMarkdown>
+                                                ) : (
+                                                    <p className="text-gray-400">Debate in progress...</p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
