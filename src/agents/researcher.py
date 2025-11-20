@@ -19,12 +19,24 @@ def create_researcher_node(llm, memory, role_prompt, agent_name):
         """
         past_memories = memory.get_memories(situation_summary)
         past_memory_str = "\n".join([mem['recommendation'] for mem in past_memories])
+        # Truncate past memories to reduce context size
+        if len(past_memory_str) > 1000:
+            past_memory_str = past_memory_str[:1000] + "..."
+        
+        # Truncate debate history to reduce context size
+        debate_history = state['investment_debate_state']['history']
+        if len(debate_history) > 3000:
+            debate_history = "..." + debate_history[-3000:]  # Keep only last 3000 chars
+        
+        current_response = state['investment_debate_state']['current_response']
+        if len(current_response) > 1000:
+            current_response = current_response[-1000:]  # Keep only last 1000 chars
         
         prompt = f"""{role_prompt}
         Here is the current state of the analysis:
         {situation_summary}
-        Conversation history: {state['investment_debate_state']['history']}
-        Your opponent's last argument: {state['investment_debate_state']['current_response']}
+        Conversation history: {debate_history}
+        Your opponent's last argument: {current_response}
         Reflections from similar past situations: {past_memory_str or 'No past memories found.'}
         Based on all this information, present your argument conversationally."""
         
@@ -46,11 +58,16 @@ def create_researcher_node(llm, memory, role_prompt, agent_name):
 
 def create_research_manager(llm, memory):
     def research_manager_node(state: AgentState):
+        # Truncate debate history for final decision
+        debate_history = state['investment_debate_state']['history']
+        if len(debate_history) > 5000:
+            debate_history = "..." + debate_history[-5000:]  # Keep last 5000 chars for final decision
+            
         prompt = f"""As the Research Manager, your role is to critically evaluate the debate between the Bull and Bear analysts and make a definitive decision.
         Summarize the key points, then provide a clear recommendation: Buy, Sell, or Hold. Develop a detailed investment plan for the trader, including your rationale and strategic actions.
         
         Debate History:
-        {state['investment_debate_state']['history']}"""
+        {debate_history}"""
         response = llm.invoke(prompt)
         return {"investment_plan": response.content}
     return research_manager_node
@@ -75,4 +92,3 @@ def get_bear_researcher_node():
 def get_research_manager_node():
     deep_llm = get_llm(model_name="gpt-4o")
     return create_research_manager(deep_llm, invest_judge_memory)
-

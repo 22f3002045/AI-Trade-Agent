@@ -12,8 +12,10 @@ def filter_messages(messages):
     Keep all HumanMessages.
     Keep all AIMessages that are reports (no tool calls).
     Keep tool-related messages ONLY if they are part of the current unfinished sequence.
+    Also truncate very long tool responses to prevent context overflow.
     """
     filtered = []
+    MAX_TOOL_RESPONSE_LENGTH = 2000  # Drastically limit to stay within free tier quota
     
     # Find indices of all "Report" messages (AIMessages without tool calls)
     report_indices = [i for i, m in enumerate(messages) if isinstance(m, AIMessage) and not m.tool_calls]
@@ -26,7 +28,14 @@ def filter_messages(messages):
             
         # Check if it's a Report (AIMessage with no tool calls)
         if isinstance(m, AIMessage) and not m.tool_calls:
-            filtered.append(m)
+            # Truncate very long reports
+            if len(m.content) > MAX_TOOL_RESPONSE_LENGTH:
+                truncated_message = AIMessage(
+                    content=m.content[:MAX_TOOL_RESPONSE_LENGTH] + "\n\n[... Report truncated for brevity ...]"
+                )
+                filtered.append(truncated_message)
+            else:
+                filtered.append(m)
             continue
             
         # It's a ToolMessage or AIMessage with tool calls
@@ -35,7 +44,15 @@ def filter_messages(messages):
         
         if not has_subsequent_report:
             # This is part of the current active chain (no report finished it yet)
-            filtered.append(m)
+            # Truncate tool messages if they're too long
+            if isinstance(m, ToolMessage) and len(m.content) > MAX_TOOL_RESPONSE_LENGTH:
+                truncated_tool_msg = ToolMessage(
+                    content=m.content[:MAX_TOOL_RESPONSE_LENGTH] + "\n\n[... Tool response truncated ...]",
+                    tool_call_id=m.tool_call_id
+                )
+                filtered.append(truncated_tool_msg)
+            else:
+                filtered.append(m)
             
     return filtered
 

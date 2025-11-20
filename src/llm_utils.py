@@ -13,7 +13,7 @@ from langchain_core.callbacks import CallbackManagerForLLMRun
 # Global lock and timestamp for rate limiting
 _rate_limit_lock = threading.Lock()
 _last_request_time = 0
-_min_delay = 10.0  # 10 seconds between requests (6 requests/min to be safe)
+_min_delay = 15.0  # 15 seconds between requests to stay within free tier quota
 _request_count = 0
 _rate_limit_callback = None
 
@@ -89,13 +89,14 @@ def get_llm(model_name="gpt-4o-mini", provider=None):
 
     if provider == "gemini":
         # Allow user to override model via env var.
+        # Using gemini-2.5-flash (lowest tier available)
         model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
         
         llm = ChatGoogleGenerativeAI(
             model=model_name, 
             temperature=0.1,
             max_retries=5,
-            request_timeout=120
+            request_timeout=300  # Increased to 5 minutes to handle large contexts
         )
         return RateLimitWrapper(llm=llm)
     

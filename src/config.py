@@ -14,7 +14,7 @@ class Config:
     def __init__(self):
         self.RESULTS_DIR = "./results"
         self.DATA_CACHE_DIR = "./data_cache"
-        self.MAX_DEBATE_ROUNDS = 2
+        self.MAX_DEBATE_ROUNDS = 1  # Reduced to minimize API calls
         self.MAX_RISK_DISCUSS_ROUNDS = 1
         self.MAX_RECUR_LIMIT = 100
         
